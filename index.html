@@ -1,68 +1,1112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Push Client</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div id="video-container">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <div id="status-overlay" class="status">Initializing...</div>
-        <button id="settings-btn" class="overlay-btn">⚙️ Settings</button>
-        <button id="stream-btn" class="overlay-btn">▶️ Start Stream</button>
-        <button id="switch-camera-btn" class="overlay-btn">🔄 Switch Camera</button>
-    </div>
+    <title>WebRTC 视频推流客户端</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    <div id="settings-modal" class="modal hidden">
-        <div class="modal-content">
-            <h2>Settings</h2>
-            
-            <form id="settings-form">
-                <fieldset>
-                    <legend>Server Configuration</legend>
-                    <label for="server-url">Server URL:</label>
-                    <input type="url" id="server-url" placeholder="https://example.com/webrtc" required>
-                    
-                    <label for="username">Username (optional):</label>
-                    <input type="text" id="username" placeholder="user">
-                    
-                    <label for="password">Password (optional):</label>
-                    <input type="password" id="password" placeholder="pass">
-                </fieldset>
-                
-                <fieldset>
-                    <legend>Streaming Parameters</legend>
-                    <label for="resolution">Resolution:</label>
-                    <select id="resolution">
-                        <option value="640x480">640x480</option>
-                        <option value="1280x720" selected>1280x720</option>
-                        <option value="1920x1080">1920x1080</option>
-                    </select>
-                    
-                    <label for="framerate">Framerate:</label>
-                    <select id="framerate">
-                        <option value="15">15 fps</option>
-                        <option value="24">24 fps</option>
-                        <option value="30" selected>30 fps</option>
-                    </select>
-                    
-                    <label for="camera">Camera:</label>
-                    <select id="camera">
-                        <option value="user">Front</option>
-                        <option value="environment">Rear</option>
-                    </select>
-                </fieldset>
-                
-                <div class="modal-actions">
-                    <button type="submit" id="save-btn">Save</button>
-                    <button type="button" id="cancel-btn">Cancel</button>
-                </div>
-            </form>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 主视频容器 */
+        .video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+        }
+
+        #localVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background-color: #000;
+        }
+
+        /* 控制按钮层 */
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.05);
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-indicator.connecting {
+            background: rgba(255, 165, 0, 0.8);
+        }
+
+        .status-indicator.streaming {
+            background: rgba(0, 255, 0, 0.8);
+        }
+
+        .status-indicator.error {
+            background: rgba(255, 0, 0, 0.8);
+        }
+
+        /* 底部控制栏 */
+        .bottom-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 20px;
+        }
+
+        .main-btn {
+            background: #007AFF;
+            border: none;
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .main-btn:hover {
+            background: #0056CC;
+            transform: translateY(-2px);
+        }
+
+        .main-btn:active {
+            transform: translateY(0);
+        }
+
+        .main-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stop-btn {
+            background: #FF3B30;
+        }
+
+        .stop-btn:hover {
+            background: #CC2E24;
+        }
+
+        /* 设置模态框 */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .settings-modal.show {
+            display: flex;
+        }
+
+        .settings-content {
+            background: #1C1C1E;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .settings-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #007AFF;
+        }
+
+        .settings-section {
+            margin-bottom: 25px;
+        }
+
+        .settings-section h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #fff;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: #ccc;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #2C2C2E;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+
+        .settings-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .settings-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+
+        .save-btn {
+            background: #007AFF;
+            color: #fff;
+        }
+
+        .save-btn:hover {
+            background: #0056CC;
+        }
+
+        .cancel-btn {
+            background: #333;
+            color: #fff;
+        }
+
+        .cancel-btn:hover {
+            background: #555;
+        }
+
+        /* 摄像头切换按钮 */
+        .camera-switch {
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: #fff;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-switch:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .controls {
+                top: 10px;
+                right: 10px;
+                gap: 5px;
+            }
+
+            .control-btn {
+                padding: 10px 12px;
+                font-size: 12px;
+            }
+
+            .status-indicator {
+                top: 10px;
+                left: 10px;
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+
+            .bottom-controls {
+                bottom: 20px;
+                gap: 15px;
+            }
+
+            .main-btn {
+                padding: 12px 24px;
+                font-size: 14px;
+                min-width: 100px;
+            }
+
+            .settings-content {
+                padding: 20px;
+                margin: 10px;
+            }
+
+            .settings-title {
+                font-size: 20px;
+                margin-bottom: 20px;
+            }
+
+            .settings-section h3 {
+                font-size: 16px;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 错误消息 */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+            background: rgba(255, 0, 0, 0.9);
+            color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 300px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* 权限提示 */
+        .permission-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+            background: rgba(0, 122, 255, 0.95);
+            color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 320px;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .permission-prompt.show {
+            display: block;
+        }
+
+        .permission-prompt h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .permission-prompt p {
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.4;
+            opacity: 0.9;
+        }
+
+        .permission-prompt .steps {
+            text-align: left;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        .permission-prompt .steps li {
+            margin-bottom: 8px;
+            padding-left: 5px;
+        }
+
+        .permission-btn {
+            background: #fff;
+            color: #007AFF;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 5px;
+        }
+
+        .permission-btn:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 主视频容器 -->
+    <div class="video-container">
+        <video id="localVideo" autoplay muted playsinline></video>
+
+        <!-- 状态指示器 -->
+        <div id="statusIndicator" class="status-indicator">
+            准备就绪
+        </div>
+
+        <!-- 顶部控制按钮 -->
+        <div class="controls">
+            <button id="cameraSwitch" class="camera-switch" title="切换摄像头">
+                🔄
+            </button>
+            <button id="settingsBtn" class="control-btn">
+                ⚙️ 设置
+            </button>
+        </div>
+
+        <!-- 底部控制按钮 -->
+        <div class="bottom-controls">
+            <button id="startBtn" class="main-btn">
+                开始推流
+            </button>
+            <button id="stopBtn" class="main-btn stop-btn" style="display: none;">
+                停止推流
+            </button>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- 加载动画 -->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 错误消息 -->
+    <div id="errorMessage" class="error-message">
+        <div id="errorText"></div>
+        <button onclick="hideError()"
+            style="margin-top: 10px; background: none; border: 1px solid #fff; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+            关闭
+        </button>
+    </div>
+
+    <!-- 权限提示 -->
+    <div id="permissionPrompt" class="permission-prompt">
+        <h3>📹 需要摄像头权限</h3>
+        <p>为了开始视频推流，我们需要访问您的摄像头。</p>
+        <div class="steps">
+            <p><strong>请按照以下步骤操作：</strong></p>
+            <ol>
+                <li>点击浏览器地址栏左侧的摄像头图标</li>
+                <li>选择"允许"访问摄像头</li>
+                <li>如果没有看到提示，请刷新页面</li>
+            </ol>
+        </div>
+        <button onclick="requestCameraPermission()" class="permission-btn">重新请求权限</button>
+        <button onclick="hidePermissionPrompt()" class="permission-btn">我知道了</button>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="settings-modal">
+        <div class="settings-content">
+            <h2 class="settings-title">推流设置</h2>
+
+            <!-- 服务器设置 -->
+            <div class="settings-section">
+                <h3>服务器设置</h3>
+                <div class="form-group">
+                    <label for="serverUrl">服务器地址</label>
+                    <input type="text" id="serverUrl" placeholder="https://your-server.com/api/webrtc" />
+                </div>
+                <div class="form-group">
+                    <label for="username">用户名（可选）</label>
+                    <input type="text" id="username" placeholder="用户名" />
+                </div>
+                <div class="form-group">
+                    <label for="password">密码（可选）</label>
+                    <input type="password" id="password" placeholder="密码" />
+                </div>
+            </div>
+
+            <!-- 串流参数设置 -->
+            <div class="settings-section">
+                <h3>串流参数</h3>
+                <div class="form-group">
+                    <label for="resolution">分辨率</label>
+                    <select id="resolution">
+                        <option value="640x480">640x480</option>
+                        <option value="1280x720">1280x720</option>
+                        <option value="1920x1080">1920x1080</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="framerate">帧率</label>
+                    <select id="framerate">
+                        <option value="15">15 FPS</option>
+                        <option value="24">24 FPS</option>
+                        <option value="30">30 FPS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="cameraFacing">摄像头</label>
+                    <select id="cameraFacing">
+                        <option value="user">前置摄像头</option>
+                        <option value="environment">后置摄像头</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="settings-buttons">
+                <button id="saveSettingsBtn" class="settings-btn save-btn">
+                    保存
+                </button>
+                <button id="cancelSettingsBtn" class="settings-btn cancel-btn">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let localVideo = null;
+        let localStream = null;
+        let peerConnection = null;
+        let isStreaming = false;
+        let currentCamera = 'user';
+        let availableCameras = [];
+
+        // 应用配置
+        const App = {
+            // 初始化应用
+            init() {
+                this.initElements();
+                this.bindEvents();
+                this.loadSettings();
+                this.initCamera();
+                this.detectCameras();
+            },
+
+            // 初始化DOM元素
+            initElements() {
+                localVideo = document.getElementById('localVideo');
+                this.elements = {
+                    statusIndicator: document.getElementById('statusIndicator'),
+                    startBtn: document.getElementById('startBtn'),
+                    stopBtn: document.getElementById('stopBtn'),
+                    settingsBtn: document.getElementById('settingsBtn'),
+                    cameraSwitch: document.getElementById('cameraSwitch'),
+                    settingsModal: document.getElementById('settingsModal'),
+                    loading: document.getElementById('loading'),
+                    errorMessage: document.getElementById('errorMessage'),
+                    errorText: document.getElementById('errorText'),
+                    permissionPrompt: document.getElementById('permissionPrompt')
+                };
+            },
+
+            // 绑定事件监听器
+            bindEvents() {
+                this.elements.startBtn.addEventListener('click', () => this.startStreaming());
+                this.elements.stopBtn.addEventListener('click', () => this.stopStreaming());
+                this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
+                this.elements.cameraSwitch.addEventListener('click', () => this.switchCamera());
+
+                document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
+                document.getElementById('cancelSettingsBtn').addEventListener('click', () => this.hideSettings());
+
+                // 点击模态框外部关闭
+                this.elements.settingsModal.addEventListener('click', (e) => {
+                    if (e.target === this.elements.settingsModal) {
+                        this.hideSettings();
+                    }
+                });
+            },
+
+            // 检测可用摄像头
+            async detectCameras() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    availableCameras = devices.filter(device => device.kind === 'videoinput');
+
+                    // 如果只有一个摄像头，隐藏切换按钮
+                    if (availableCameras.length <= 1) {
+                        this.elements.cameraSwitch.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('检测摄像头失败:', error);
+                }
+            },
+
+            // 初始化摄像头
+            async initCamera() {
+                try {
+                    this.showLoading();
+                    this.updateStatus('请求摄像头权限...', 'connecting');
+
+                    const config = ConfigManager.getConfig();
+
+                    const constraints = {
+                        video: {
+                            width: { ideal: config.resolution.width },
+                            height: { ideal: config.resolution.height },
+                            frameRate: { ideal: config.framerate },
+                            facingMode: config.cameraFacing
+                        },
+                        audio: false // 纯视频推流，不需要音频
+                    };
+
+                    // 请求摄像头权限
+                    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                    if (localStream && localStream.getTracks().length > 0) {
+                        localVideo.srcObject = localStream;
+                        this.updateStatus('摄像头已就绪', 'ready');
+                        this.elements.startBtn.disabled = false;
+                        this.hidePermissionPrompt();
+                    } else {
+                        throw new Error('无法获取摄像头流');
+                    }
+
+                } catch (error) {
+                    console.error('初始化摄像头失败:', error);
+                    this.handleCameraError(error);
+                } finally {
+                    this.hideLoading();
+                }
+            },
+
+            // 处理摄像头错误
+            handleCameraError(error) {
+                console.error('摄像头错误:', error);
+
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    this.showPermissionPrompt();
+                    this.updateStatus('需要摄像头权限', 'error');
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    this.showError('未找到摄像头设备');
+                    this.updateStatus('未找到摄像头', 'error');
+                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                    this.showError('摄像头被其他应用占用');
+                    this.updateStatus('摄像头被占用', 'error');
+                } else {
+                    this.showError('摄像头初始化失败: ' + error.message);
+                    this.updateStatus('摄像头初始化失败', 'error');
+                }
+
+                this.elements.startBtn.disabled = true;
+            },
+
+            // 切换摄像头
+            async switchCamera() {
+                if (availableCameras.length <= 1) return;
+
+                try {
+                    this.showLoading();
+
+                    // 停止当前流
+                    if (localStream) {
+                        localStream.getTracks().forEach(track => track.stop());
+                    }
+
+                    // 切换摄像头方向
+                    currentCamera = currentCamera === 'user' ? 'environment' : 'user';
+
+                    const config = ConfigManager.getConfig();
+                    const constraints = {
+                        video: {
+                            width: { ideal: config.resolution.width },
+                            height: { ideal: config.resolution.height },
+                            frameRate: { ideal: config.framerate },
+                            facingMode: currentCamera
+                        },
+                        audio: false
+                    };
+
+                    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    localVideo.srcObject = localStream;
+
+                    // 如果正在推流，需要更新 PeerConnection
+                    if (isStreaming && peerConnection) {
+                        await this.updateStreamInPeerConnection();
+                    }
+
+                } catch (error) {
+                    console.error('切换摄像头失败:', error);
+                    this.showError('切换摄像头失败');
+                } finally {
+                    this.hideLoading();
+                }
+            },
+
+            // 更新 PeerConnection 中的视频流
+            async updateStreamInPeerConnection() {
+                try {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    const sender = peerConnection.getSenders().find(s =>
+                        s.track && s.track.kind === 'video'
+                    );
+
+                    if (sender) {
+                        await sender.replaceTrack(videoTrack);
+                    }
+                } catch (error) {
+                    console.error('更新流失败:', error);
+                }
+            },
+
+            // 开始推流
+            async startStreaming() {
+                try {
+                    // 检查是否有有效的本地流
+                    if (!localStream || localStream.getTracks().length === 0) {
+                        this.showError('请先初始化摄像头');
+                        return;
+                    }
+
+                    this.showLoading();
+                    this.updateStatus('正在连接...', 'connecting');
+
+                    const config = ConfigManager.getConfig();
+                    if (!config.serverUrl) {
+                        this.showError('请先在设置中配置服务器地址');
+                        return;
+                    }
+
+                    // 创建 WebRTC 连接
+                    await WebRTCManager.createPeerConnection();
+
+                    // 检查 peerConnection 是否创建成功
+                    if (!peerConnection) {
+                        throw new Error('无法创建 WebRTC 连接');
+                    }
+
+                    // 添加本地流到 PeerConnection
+                    localStream.getTracks().forEach(track => {
+                        console.log('添加轨道:', track.kind, track.label);
+                        peerConnection.addTrack(track, localStream);
+                    });
+
+                    // 创建 SDP Offer
+                    const offer = await peerConnection.createOffer({
+                        offerToReceiveAudio: false,
+                        offerToReceiveVideo: false
+                    });
+
+                    await peerConnection.setLocalDescription(offer);
+                    console.log('SDP Offer 已创建:', offer);
+
+                    // 发送 Offer 到信令服务器
+                    const answer = await SignalingManager.sendOffer(offer);
+
+                    // 设置远程描述
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                    console.log('SDP Answer 已设置:', answer);
+
+                    isStreaming = true;
+                    this.updateStatus('推流中', 'streaming');
+                    this.elements.startBtn.style.display = 'none';
+                    this.elements.stopBtn.style.display = 'inline-block';
+
+                } catch (error) {
+                    console.error('开始推流失败:', error);
+                    this.showError('推流失败: ' + error.message);
+                    this.updateStatus('推流失败', 'error');
+
+                    // 清理失败的连接
+                    if (peerConnection) {
+                        peerConnection.close();
+                        peerConnection = null;
+                    }
+                } finally {
+                    this.hideLoading();
+                }
+            },
+
+            // 停止推流
+            stopStreaming() {
+                try {
+                    isStreaming = false;
+
+                    // 关闭 PeerConnection
+                    if (peerConnection) {
+                        peerConnection.close();
+                        peerConnection = null;
+                    }
+
+                    this.updateStatus('推流已停止', 'ready');
+                    this.elements.startBtn.style.display = 'inline-block';
+                    this.elements.stopBtn.style.display = 'none';
+
+                } catch (error) {
+                    console.error('停止推流失败:', error);
+                    this.showError('停止推流失败');
+                }
+            },
+
+            // 显示设置页面
+            showSettings() {
+                this.loadSettingsToUI();
+                this.elements.settingsModal.classList.add('show');
+            },
+
+            // 隐藏设置页面
+            hideSettings() {
+                this.elements.settingsModal.classList.remove('show');
+            },
+
+            // 保存设置
+            saveSettings() {
+                const config = {
+                    serverUrl: document.getElementById('serverUrl').value.trim(),
+                    username: document.getElementById('username').value.trim(),
+                    password: document.getElementById('password').value.trim(),
+                    resolution: this.parseResolution(document.getElementById('resolution').value),
+                    framerate: parseInt(document.getElementById('framerate').value),
+                    cameraFacing: document.getElementById('cameraFacing').value
+                };
+
+                // 保存配置
+                ConfigManager.saveConfig(config);
+
+                // 更新当前摄像头设置
+                currentCamera = config.cameraFacing;
+
+                this.hideSettings();
+
+                // 显示保存成功提示
+                this.updateStatus('设置已保存', 'ready');
+
+                // 重新初始化摄像头以应用新设置
+                this.initCamera();
+            },
+
+            // 加载设置
+            loadSettings() {
+                const config = ConfigManager.getConfig();
+                currentCamera = config.cameraFacing;
+            },
+
+            // 将设置加载到UI
+            loadSettingsToUI() {
+                const config = ConfigManager.getConfig();
+                document.getElementById('serverUrl').value = config.serverUrl;
+                document.getElementById('username').value = config.username;
+                document.getElementById('password').value = config.password;
+                document.getElementById('resolution').value = `${config.resolution.width}x${config.resolution.height}`;
+                document.getElementById('framerate').value = config.framerate;
+                document.getElementById('cameraFacing').value = config.cameraFacing;
+            },
+
+            // 解析分辨率字符串
+            parseResolution(resolutionStr) {
+                const [width, height] = resolutionStr.split('x').map(Number);
+                return { width, height };
+            },
+
+            // 更新状态指示器
+            updateStatus(text, type) {
+                this.elements.statusIndicator.textContent = text;
+                this.elements.statusIndicator.className = `status-indicator ${type}`;
+            },
+
+            // 显示加载动画
+            showLoading() {
+                this.elements.loading.style.display = 'block';
+            },
+
+            // 隐藏加载动画
+            hideLoading() {
+                this.elements.loading.style.display = 'none';
+            },
+
+            // 显示错误信息
+            showError(message) {
+                this.elements.errorText.textContent = message;
+                this.elements.errorMessage.classList.add('show');
+            },
+
+            // 显示权限提示
+            showPermissionPrompt() {
+                this.elements.permissionPrompt.classList.add('show');
+            },
+
+            // 隐藏权限提示
+            hidePermissionPrompt() {
+                this.elements.permissionPrompt.classList.remove('show');
+            }
+        };
+
+        // 配置管理器
+        const ConfigManager = {
+            // 默认配置
+            defaultConfig: {
+                serverUrl: '',
+                username: '',
+                password: '',
+                resolution: { width: 1280, height: 720 },
+                framerate: 30,
+                cameraFacing: 'user'
+            },
+
+            // 获取配置
+            getConfig() {
+                try {
+                    const savedConfig = JSON.parse(localStorage.getItem('webrtc-streaming-config') || '{}');
+                    const config = { ...this.defaultConfig, ...savedConfig };
+                    console.log('加载配置:', config);
+                    return config;
+                } catch (error) {
+                    console.error('加载配置失败:', error);
+                    return this.defaultConfig;
+                }
+            },
+
+            // 保存配置
+            saveConfig(config) {
+                try {
+                    localStorage.setItem('webrtc-streaming-config', JSON.stringify(config));
+                    console.log('配置已保存:', config);
+                } catch (error) {
+                    console.error('保存配置失败:', error);
+                    App.showError('保存配置失败: ' + error.message);
+                }
+            }
+        };
+
+        // WebRTC 管理器
+        const WebRTCManager = {
+            // 创建 PeerConnection
+            async createPeerConnection() {
+                // ICE 服务器配置
+                const iceServers = [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ];
+
+                // 创建 RTCPeerConnection 实例
+                peerConnection = new RTCPeerConnection({
+                    iceServers,
+                    iceCandidatePoolSize: 10
+                });
+
+                // 监听 ICE 候选者事件
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('ICE 候选者:', event.candidate);
+                        // 在实际应用中，这里需要将候选者发送给远程对等方
+                        // 由于这是一个推流客户端，ICE 候选者交换由信令服务器处理
+                    }
+                };
+
+                // 监听连接状态变化
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('连接状态:', peerConnection.connectionState);
+
+                    switch (peerConnection.connectionState) {
+                        case 'connected':
+                            App.updateStatus('已连接', 'streaming');
+                            break;
+                        case 'disconnected':
+                            App.updateStatus('连接断开', 'error');
+                            break;
+                        case 'failed':
+                            App.updateStatus('连接失败', 'error');
+                            App.showError('WebRTC 连接失败');
+                            break;
+                        case 'closed':
+                            App.updateStatus('连接已关闭', 'ready');
+                            break;
+                    }
+                };
+
+                // 监听 ICE 连接状态变化
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('ICE 连接状态:', peerConnection.iceConnectionState);
+                };
+
+                return peerConnection;
+            }
+        };
+
+        // 信令管理器
+        const SignalingManager = {
+            // 发送 SDP Offer 到服务器
+            async sendOffer(offer) {
+                const config = ConfigManager.getConfig();
+
+                const requestData = {
+                    type: 'offer',
+                    sdp: offer.sdp
+                };
+
+                // 添加认证信息（如果有）
+                if (config.username) {
+                    requestData.username = config.username;
+                }
+                if (config.password) {
+                    requestData.password = config.password;
+                }
+
+                try {
+                    const response = await fetch(config.serverUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.type !== 'answer') {
+                        throw new Error('服务器返回的不是有效的 SDP Answer');
+                    }
+
+                    return {
+                        type: 'answer',
+                        sdp: data.sdp
+                    };
+
+                } catch (error) {
+                    console.error('信令交互失败:', error);
+                    throw new Error('无法连接到信令服务器: ' + error.message);
+                }
+            }
+        };
+
+        // 全局错误处理函数
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        // 隐藏权限提示
+        function hidePermissionPrompt() {
+            document.getElementById('permissionPrompt').classList.remove('show');
+        }
+
+        // 重新请求摄像头权限
+        function requestCameraPermission() {
+            hidePermissionPrompt();
+            App.initCamera();
+        }
+
+        // 处理页面刷新和关闭
+        window.addEventListener('beforeunload', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+        });
+
+        // 处理页面可见性变化
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // 页面不可见时暂停处理
+                console.log('页面不可见');
+            } else {
+                // 页面可见时恢复处理
+                console.log('页面可见');
+            }
+        });
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
 </body>
+
 </html>
