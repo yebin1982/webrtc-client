@@ -41,25 +41,25 @@ body {
 }
 
 #settings-btn {
-    top: 20px;
+    top: calc(20px + env(safe-area-inset-top));
     right: 20px;
 }
 
 #stream-btn {
-    bottom: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
 }
 
 #switch-camera-btn {
-    top: 20px;
+    top: calc(20px + env(safe-area-inset-top));
     left: 20px;
 }
 
 /* Status Overlay */
 .status {
     position: absolute;
-    top: 20px;
+    top: calc(20px + env(safe-area-inset-top));
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(0, 0, 0, 0.7);

@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
             streamBtn.textContent = streaming ? '⏹️ Stop Stream' : '▶️ Start Stream';
             streamBtn.style.backgroundColor = streaming ? '#dc3545' : '#28a745';
         },
+        setStreamButtonEnabled(enabled) {
+            streamBtn.disabled = !enabled;
+            streamBtn.style.opacity = enabled ? '1' : '0.5';
+        },
         loadSettingsToForm(settings) {
             document.getElementById('server-url').value = settings.serverUrl;
             document.getElementById('username').value = settings.username;
@@ -107,16 +111,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 videoElement.srcObject = localStream;
-                UI.showStatus('Camera access granted.');
+                videoElement.play(); // Explicitly play video for some browsers
+                UI.showStatus('Camera ready.');
+                UI.setStreamButtonEnabled(true); // Enable stream button
             } catch (error) {
                 console.error('Error accessing media devices.', error);
                 UI.showStatus(`Error: ${error.name}`);
+                UI.setStreamButtonEnabled(false); // Disable stream button on error
                 throw error;
             }
         },
         async startStream() {
-            if (!localStream) {
+            if (!localStream || !localStream.active) {
                 UI.showStatus('Error: Camera not ready.');
+                // Attempt to re-initialize the camera
+                initializeApp();
                 return;
             }
             if (!Config.load().serverUrl) {
@@ -151,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (state === 'connected') {
                     UI.updateStreamButton(true);
                 } else if (state === 'failed' || state === 'disconnected' || state === 'closed') {
-                    this.stopStream();
+                    WebRTC.stopStream(); // Correctly call stopStream
                 }
             };
 
@@ -269,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initializeApp() {
         UI.showStatus('Initializing...');
+        UI.setStreamButtonEnabled(false); // Disable button during initialization
         const settings = Config.load();
         UI.loadSettingsToForm(settings);
 
