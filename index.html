@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Push Client</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="video-container">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div id="status-overlay" class="status">Initializing...</div>
+        <button id="settings-btn" class="overlay-btn">⚙️ Settings</button>
+        <button id="stream-btn" class="overlay-btn">▶️ Start Stream</button>
+        <button id="switch-camera-btn" class="overlay-btn">🔄 Switch Camera</button>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Settings</h2>
+            
+            <form id="settings-form">
+                <fieldset>
+                    <legend>Server Configuration</legend>
+                    <label for="server-url">Server URL:</label>
+                    <input type="url" id="server-url" placeholder="https://example.com/webrtc" required>
+                    
+                    <label for="username">Username (optional):</label>
+                    <input type="text" id="username" placeholder="user">
+                    
+                    <label for="password">Password (optional):</label>
+                    <input type="password" id="password" placeholder="pass">
+                </fieldset>
+                
+                <fieldset>
+                    <legend>Streaming Parameters</legend>
+                    <label for="resolution">Resolution:</label>
+                    <select id="resolution">
+                        <option value="640x480">640x480</option>
+                        <option value="1280x720" selected>1280x720</option>
+                        <option value="1920x1080">1920x1080</option>
+                    </select>
+                    
+                    <label for="framerate">Framerate:</label>
+                    <select id="framerate">
+                        <option value="15">15 fps</option>
+                        <option value="24">24 fps</option>
+                        <option value="30" selected>30 fps</option>
+                    </select>
+                    
+                    <label for="camera">Camera:</label>
+                    <select id="camera">
+                        <option value="user">Front</option>
+                        <option value="environment">Rear</option>
+                    </select>
+                </fieldset>
+                
+                <div class="modal-actions">
+                    <button type="submit" id="save-btn">Save</button>
+                    <button type="button" id="cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

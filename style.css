@@ -1,0 +1,166 @@
+/* General Body Styles */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #000;
+    color: #fff;
+    overflow: hidden; /* Prevents scrollbars on the main page */
+}
+
+/* Video Container - Fullscreen and Centered */
+#video-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#localVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Cover the entire container, may crop */
+}
+
+/* Overlay Buttons Styling */
+.overlay-btn {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.overlay-btn:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+#settings-btn {
+    top: 20px;
+    right: 20px;
+}
+
+#stream-btn {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#switch-camera-btn {
+    top: 20px;
+    left: 20px;
+}
+
+/* Status Overlay */
+.status {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background-color: #2c2c2c;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    text-align: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+}
+
+/* Form Styles */
+#settings-form fieldset {
+    border: 1px solid #444;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    padding: 15px;
+}
+
+#settings-form legend {
+    padding: 0 10px;
+    color: #00aaff;
+}
+
+#settings-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+#settings-form input,
+#settings-form select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #fff;
+    border-radius: 5px;
+    box-sizing: border-box; /* Important for padding and width */
+}
+
+/* Modal Action Buttons */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#save-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+#cancel-btn {
+    background-color: #6c757d;
+    color: white;
+}
